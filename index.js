@@ -113,9 +113,10 @@ exports.init = function (sbot, config) {
               renderRssItem(defaultOpts), wrapRss(about.name, defaultOpts)
             );
           default:
+            var name = about.publicWebHosting === false ? feedId.substr(0, 10) + '…' : about.name
             return pull(
               renderAbout(defaultOpts, about,
-                          renderShowAll(showAll, req.url)), wrapPage(about.name)
+                          renderShowAll(showAll, req.url)), wrapPage(name)
             );
         }
       }
