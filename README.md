@@ -82,6 +82,7 @@ e.g. `--viewer.port 8807`.
 - `viewer.blob_base`: base url for links to ssb blobs
 - `viewer.img_base`: base url for embedded blobs (images)
 - `viewer.emoji_base`: base url for emoji images
+- `viewer.require_opt_in`: whether to serve content from feeds that have not published a `publicWebHosting` `about` message. default: `true`
 
 ## References
 

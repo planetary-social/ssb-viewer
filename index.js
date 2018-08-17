@@ -50,6 +50,7 @@ exports.init = function (sbot, config) {
     blob_base: conf.blob_base || base,
     img_base: conf.img_base || base,
     emoji_base: conf.emoji_base || (base + 'emoji/'),
+    requireOptIn: conf.require_opt_in == null ? true : conf.require_opt_in,
   }
 
   defaultOpts.marked = {
@@ -113,7 +114,9 @@ exports.init = function (sbot, config) {
               renderRssItem(defaultOpts), wrapRss(about.name, defaultOpts)
             );
           default:
-            var name = about.publicWebHosting === false ? feedId.substr(0, 10) + '…' : about.name
+            var publicWebHosting = about.publicWebHosting == null
+              ? !defaultOpts.requireOptIn : about.publicWebHosting
+            var name = publicWebHosting ? about.name : feedId.substr(0, 10) + '…'
             return pull(
               renderAbout(defaultOpts, about,
                           renderShowAll(showAll, req.url)), wrapPage(name)
