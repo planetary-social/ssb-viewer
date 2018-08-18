@@ -303,6 +303,7 @@ exports.init = function (sbot, config) {
       blob_base: q.blob_base || conf.blob_base || base,
       img_base: q.img_base || conf.img_base || base,
       emoji_base: q.emoji_base || conf.emoji_base || (base + 'emoji/'),
+      requireOptIn: defaultOpts.requireOptIn,
     }
     opts.marked = {
       gfm: true,
