@@ -81,6 +81,9 @@ exports.init = function (sbot, config) {
 
     var m = urlIdRegex.exec(req.url)
 
+    if (m[4] === '/robots.txt') return serveRobots(req, res, conf)
+    if (req.url.startsWith('/static/')) return serveStatic(req, res, m[4])
+    if (req.url.startsWith('/emoji/')) return serveEmoji(req, res, m[4])
     if (req.url.startsWith('/user-feed/')) return serveUserFeed(req, res, m[4])
     else if (req.url.startsWith('/channel/')) return serveChannel(req, res, m[4])
     else if (req.url.startsWith('/.well-known/acme-challenge')) return serveAcmeChallenge(req, res)
@@ -94,8 +97,8 @@ exports.init = function (sbot, config) {
       case '%': return serveId(req, res, m[1], m[3], m[5])
       case '@': return serveFeed(req, res, m[1], m[3], m[5])
       case '&': return serveBlob(req, res, sbot, m[1])
-      default: return servePath(req, res, m[4], conf)
     }
+    return respond(res, 404, 'Not found')
   }
 
   function serveFeed(req, res, feedId, ext) {
@@ -494,18 +497,6 @@ function ctype(name) {
     case 'json': return 'application/json'
     case 'rss': return 'text/xml'
   }
-}
-
-function servePath(req, res, url, conf) {
-  switch (url) {
-    case '/robots.txt': return serveRobots(req, res, conf)
-  }
-  var m = /^(\/?[^\/]*)(\/.*)?$/.exec(url)
-  switch (m[1]) {
-    case '/static': return serveStatic(req, res, m[2])
-    case '/emoji': return serveEmoji(req, res, m[2])
-  }
-  return respond(res, 404, 'Not found')
 }
 
 function ifModified(req, lastMod) {
