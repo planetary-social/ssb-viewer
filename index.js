@@ -535,8 +535,9 @@ function serveFile(req, res, file) {
 }
 
 function serveRobots(req, res, conf) {
-  res.end('User-agent: *'
-    + (conf.disallowRobots ? '\nDisallow: /' : ''))
+  var disallow = conf.disallowRobots == null ? true : conf.disallowRobots
+  res.end('User-agent: *\n'
+    + (disallow ? 'Disallow: /\n' : ''))
 }
 
 function prepend(fn, arg) {
