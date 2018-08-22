@@ -83,6 +83,7 @@ e.g. `--viewer.port 8807`.
 - `viewer.img_base`: base url for embedded blobs (images)
 - `viewer.emoji_base`: base url for emoji images
 - `viewer.require_opt_in`: whether to serve content from feeds that have not published a `publicWebHosting` `about` message. default: `true`
+- `viewer.disallowRobots`: whether to direct search engines to not index the site. default: `false`
 
 ## References
 
