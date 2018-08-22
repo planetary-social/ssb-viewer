@@ -11,6 +11,8 @@ var memo = require('asyncmemo')
 var lru = require('lrucache')
 var webresolve = require('ssb-web-resolver')
 var serveEmoji = require('emoji-server')()
+var refs = require('ssb-ref')
+var h = require('hyperscript')
 var {
   MdRenderer,
   renderEmoji,
@@ -98,6 +100,8 @@ exports.init = function (sbot, config) {
       case '@': return serveFeed(req, res, m[1], m[3], m[5])
       case '&': return serveBlob(req, res, sbot, m[1])
     }
+
+    if (m[4] === '/') return serveHome(req, res, m[5])
     return respond(res, 404, 'Not found')
   }
 
@@ -523,6 +527,42 @@ function serveFile(req, res, file) {
     })
     fs.createReadStream(file).pipe(res)
   })
+}
+
+function asLink(id) {
+  if (!id || typeof id !== 'string') return null
+  id = id.trim()
+  if (refs.isLink(id)) return id
+  try {
+    id = decodeURIComponent(id)
+  } catch(e) {
+    return null
+  }
+  if (refs.isLink(id)) return id
+}
+
+function serveHome(req, res, query, conf) {
+  var q = query ? qs.parse(query) : {}
+  var id = asLink(q.id)
+  if (id) {
+    res.writeHead(303, {
+      Location: '/' + (refs.isMsgId(id) ? encodeURIComponent(id) : id)
+    })
+    return res.end()
+  }
+  res.writeHead(200, {
+    'Content-Type': 'text/html'
+  })
+  pull(
+    pull.once(h('form', {method: 'get', action: ''},
+      h('input', {name: 'id', placeholder: 'id', size: 60, value: q.id || ''}), ' ',
+      h('input', {type: 'submit', value: 'Go'})
+    ).outerHTML),
+    wrapPage('ssb-viewer'),
+    toPull(res, function (err) {
+      if (err) console.error('[viewer]', err)
+    })
+  )
 }
 
 function serveRobots(req, res, conf) {
