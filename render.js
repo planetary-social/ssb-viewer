@@ -375,7 +375,9 @@ function renderMsg(opts, id, msg) {
 		 h('a.ssb-avatar-name',
 		   { href: opts.base + escape(msg.value.author) },
 		   msg.author.name),
-		 msgTimestamp(msg, opts.base + name)))),
+		 msgTimestamp(msg, opts.base + name), ' ',
+		 h('small', h('code', msg.key))
+	       ))),
 	   render(opts, id, c)).outerHTML;
 }
 
