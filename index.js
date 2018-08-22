@@ -529,15 +529,22 @@ function serveFile(req, res, file) {
   })
 }
 
+function asChannelLink(id) {
+  var channel = refs.normalizeChannel(id)
+  if (channel) return '#' + channel
+}
+
 function asLink(id) {
   if (!id || typeof id !== 'string') return null
   id = id.trim()
+  if (id[0] === '#') return asChannelLink(id)
   if (refs.isLink(id)) return id
   try {
     id = decodeURIComponent(id)
   } catch(e) {
     return null
   }
+  if (id[0] === '#') return asChannelLink(id)
   if (refs.isLink(id)) return id
 }
 
@@ -546,7 +553,9 @@ function serveHome(req, res, query, conf) {
   var id = asLink(q.id)
   if (id) {
     res.writeHead(303, {
-      Location: '/' + (refs.isMsgId(id) ? encodeURIComponent(id) : id)
+      Location: '/' + (
+	id[0] === '#' ? 'channel/' + id.substr(1) :
+	refs.isMsgId(id) ? encodeURIComponent(id) : id)
     })
     return res.end()
   }
