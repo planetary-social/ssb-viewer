@@ -34,9 +34,9 @@ MdRenderer.prototype.urltransform = function(href) {
       return this.opts.msg_base + encodeURIComponent(href);
     case "@":
       href = (this.opts.mentions && this.opts.mentions[href.substr(1)]) || href;
-      return this.opts.feed_base + encodeURIComponent(href);
+      return this.opts.feed_base + href;
     case "&":
-      return this.opts.blob_base + encodeURIComponent(href);
+      return this.opts.blob_base + href;
   }
   if (href.indexOf("javascript:") === 0) return false;
   return href;
@@ -441,7 +441,7 @@ function render(opts, id, c) {
 	linkedText = c.vote.linkedText.substring(0, 75);
     return h('span.status',
 	     ['Liked ',
-	      h('a', { href: base + c.vote.link }, linkedText),
+	      h('a', { href: base + encodeURIComponent(c.vote.link) }, linkedText),
 	      channel]);
   } else if (c.type == "vote") {
     var linkedText = "this";
@@ -449,7 +449,7 @@ function render(opts, id, c) {
       linkedText = c.vote.linkedText.substring(0, 75);
       return h('span.status',
 	       ['Voted ',
-		h('a', { href: base + c.vote.link }, linkedText)]);
+		h('a', { href: base + encodeURIComponent(c.vote.link) }, linkedText)]);
   } else if (c.type == "contact" && c.following) {
     var name = c.contact;
     if (typeof c.contactAbout != "undefined")
