@@ -5,6 +5,7 @@ var htime = require("human-time");
 var emojis = require("emoji-named-characters");
 var cat = require("pull-cat");
 var h = require('hyperscript');
+var refs = require('ssb-ref')
 
 var emojiDir = path.join(require.resolve("emoji-named-characters"), "../pngs");
 
@@ -31,11 +32,14 @@ MdRenderer.prototype.urltransform = function(href) {
     case "#":
       return this.opts.base + "channel/" + href.slice(1);
     case "%":
+      if (!refs.isMsgId(href)) return false
       return this.opts.msg_base + encodeURIComponent(href);
     case "@":
+      if (!refs.isFeedId(href)) return false
       href = (this.opts.mentions && this.opts.mentions[href.substr(1)]) || href;
       return this.opts.feed_base + href;
     case "&":
+      if (!refs.isBlobId(href)) return false
       return this.opts.blob_base + href;
   }
   if (href.indexOf("javascript:") === 0) return false;
