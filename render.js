@@ -507,7 +507,15 @@ function render(opts, id, c) {
     return h('span.status', 'Connected to the pub ' + host);
   }
   else if (c.type == "npm-packages") {
-    return [h('span.status', 'Pushed npm packages')];
+    return h('div.status', 'Pushed npm packages',
+      Array.isArray(c.mentions) ? h('ul', c.mentions.map(function (link) {
+        var name = link && link.name
+        var m = name && /^npm:([^:]*):([^:]*)(?::([^:]*)(?:\.tgz)?)?$/.exec(name)
+        if (!m) return
+        var [, name, version, tag] = m
+        return h('li', name + ' v' + version + (tag ? ' (' + tag + ')' : ''))
+      })) : ''
+    );
   }
   else if (c.type == "channel" && c.subscribed)
     return h('span.status',
