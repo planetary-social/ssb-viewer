@@ -449,21 +449,21 @@ function render(opts, id, c) {
 	      channel]);
   } else if (c.type == "vote") {
     var linkedText = "this";
-    if (typeof c.vote.linkedText != "undefined")
+    if (c.vote && typeof c.vote.linkedText === "string")
       linkedText = c.vote.linkedText.substring(0, 75);
       return h('span.status',
 	       ['Voted ',
 		h('a', { href: base + encodeURIComponent(c.vote.link) }, linkedText)]);
   } else if (c.type == "contact" && c.following) {
     var name = c.contact;
-    if (typeof c.contactAbout != "undefined")
+    if (c.contactAbout)
 	name = c.contactAbout.name;
     return h('span.status',
 	     ['Followed ',
 	      h('a', { href: base + c.contact }, name)]);
   } else if (c.type == "contact" && !c.following) {
     var name = c.contact;
-    if (typeof c.contactAbout != "undefined")
+    if (c.contactAbout)
 	name = c.contactAbout.name;
     return h('span.status',
 	     ['Unfollowed ',
@@ -482,7 +482,7 @@ function render(opts, id, c) {
   else if (c.type == "issue") {
     return [h('span.status',
 	     "Created a git issue" +
-	      (c.repoName != undefined ? " in repo " + c.repoName : ""),
+	      (c.repoName ? " in repo " + c.repoName : ""),
 	      renderPost(opts, id, c))];
   }
   else if (c.type == "git-repo") {
@@ -494,15 +494,16 @@ function render(opts, id, c) {
     s.innerHTML = "Did a git update " +
 	  (c.repoName != undefined ? " in repo " + escape(c.repoName) : "") +
 	  '<br>' +
-	  (c.commits != undefined ?
-	   c.commits.map(com => { return "-" +escape(com.title); }).join('<br>') : "");
+	  (Array.isArray(c.commits) ?
+	   c.commits.filter(Boolean).map(com => { return "-" +escape(com.title || com.sha1); }).join('<br>') : "");
     return s;
   }
   else if (c.type == "ssb-dns") {
     return [h('span.status', 'Updated DNS'), renderDefault(c)];
   }
   else if (c.type == "pub") {
-    return h('span.status', 'Connected to the pub ' + c.address.host);
+    var host = c.address && c.address.host
+    return h('span.status', 'Connected to the pub ' + host);
   }
   else if (c.type == "npm-packages") {
     return [h('span.status', 'Pushed npm packages')];
@@ -531,7 +532,7 @@ function render(opts, id, c) {
     var s = h('section');
     s.innerHTML = marked(String(c.blogContent), opts.marked)
 
-    return [channel, h('h2', c.title), s];
+    return [channel, h('h2', String(c.title)), s];
   }
   else if (c.type === 'gathering') {
     return h('div', renderGathering(opts, id, c))
@@ -540,12 +541,13 @@ function render(opts, id, c) {
 }
 
 function renderGathering(opts, id, c) {
-  const title = h('h2', c.about.title)
-  const time = h('h3', new Date(c.about.startDateTime.epoch).toUTCString())
+  const title = h('h2', String(c.about.title))
+  const startEpoch = c.about.startDateTime && c.about.startDateTime.epoch
+  const time = startEpoch ? h('h3', new Date(startEpoch).toUTCString()) : ''
   const image = h('p', h('img', { src: opts.img_base + c.about.image }))
   const attending = h('h3.attending', c.numberAttending + ' attending')
   const desc = h('div')
-  desc.innerHTML = marked(c.about.description, opts.marked)
+  desc.innerHTML = marked(String(c.about.description), opts.marked)
   return h('section',
     [title,
     time,
