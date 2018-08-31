@@ -126,7 +126,7 @@ function renderAbout(opts, about, showAllHTML = "") {
   }
 
   var figCaption = h('figcaption');
-  figCaption.innerHTML = 'Feed of ' + about.name + '<br>' + marked(String(about.description || ''), opts.marked);
+  figCaption.innerHTML = 'Feed of ' + escape(about.name) + '<br>' + marked(String(about.description || ''), opts.marked);
   return pull(
     pull.map(renderMsg.bind(this, opts, '')),
     wrap(toolTipTop() + '<main>' +
@@ -492,10 +492,10 @@ function render(opts, id, c) {
   else if (c.type == "git-update") {
     var s = h('span.status');
     s.innerHTML = "Did a git update " +
-	  (c.repoName != undefined ? " in repo " + c.repoName : "") +
+	  (c.repoName != undefined ? " in repo " + escape(c.repoName) : "") +
 	  '<br>' +
 	  (c.commits != undefined ?
-	   c.commits.map(com => { return "-" +com.title; }).join('<br>') : "");
+	   c.commits.map(com => { return "-" +escape(com.title); }).join('<br>') : "");
     return s;
   }
   else if (c.type == "ssb-dns") {
