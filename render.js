@@ -490,13 +490,14 @@ function render(opts, id, c) {
 	     "Created a git repo " + c.name);
   }
   else if (c.type == "git-update") {
-    var s = h('span.status');
-    s.innerHTML = "Did a git update " +
-	  (c.repoName != undefined ? " in repo " + escape(c.repoName) : "") +
-	  '<br>' +
-	  (Array.isArray(c.commits) ?
-	   c.commits.filter(Boolean).map(com => { return "-" +escape(com.title || com.sha1); }).join('<br>') : "");
-    return s;
+    return h('div.status', "Did a git update " +
+      (c.repoName ? " in repo " + c.repoName : ""),
+      (Array.isArray(c.commits) ? h('ul',
+        c.commits.filter(Boolean).map(com => {
+          return h('li', String(com.title || com.sha1))
+        })
+      ) : "")
+    )
   }
   else if (c.type == "ssb-dns") {
     return [h('span.status', 'Updated DNS'), renderDefault(c)];
