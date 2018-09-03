@@ -73,6 +73,7 @@ exports.init = function (sbot, config) {
   var serveAcmeChallenge = require('ssb-acme-validator')(sbot)
 
   http.createServer(serve).listen(port, host, function () {
+    if (/:/.test(host)) host = '[' + host + ']'
     console.log('[viewer] Listening on http://' + host + ':' + port)
   })
 
