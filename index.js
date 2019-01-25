@@ -12,6 +12,7 @@ var lru = require('lrucache')
 var webresolve = require('ssb-web-resolver')
 var serveEmoji = require('emoji-server')()
 var refs = require('ssb-ref')
+var BoxStream = require('pull-box-stream')
 var h = require('hyperscript')
 var {
   MdRenderer,
@@ -28,6 +29,8 @@ var {
 var appHash = hash([fs.readFileSync(__filename)])
 
 var urlIdRegex = /^(?:\/(([%&@]|%25|%26|%40)(?:[A-Za-z0-9\/+]|%2[Ff]|%2[Bb]){43}(?:=|%3[Dd])\.(?:sha256|ed25519))(?:\.([^?]*))?|(\/.*?))(?:\?(.*))?$/
+
+var zeros = new Buffer(24); zeros.fill(0)
 
 function hash(arr) {
   return arr.reduce(function (hash, item) {
@@ -99,7 +102,7 @@ exports.init = function (sbot, config) {
     switch (m[2]) {
       case '%': return serveId(req, res, m[1], m[3], m[5])
       case '@': return serveFeed(req, res, m[1], m[3], m[5])
-      case '&': return serveBlob(req, res, sbot, m[1])
+      case '&': return serveBlob(req, res, sbot, m[1], m[5])
     }
 
     if (m[4] === '/') return serveHome(req, res, m[5])
@@ -461,20 +464,34 @@ exports.init = function (sbot, config) {
   }
 }
 
-function serveBlob(req, res, sbot, id) {
-  if (req.headers['if-none-match'] === id) return respond(res, 304)
+function serveBlob(req, res, sbot, id, query) {
+  var q = query && qs.parse(query)
+  var unbox = q && typeof q.unbox === 'string' && q.unbox.replace(/\s/g, '+')
+  var etag = id + (unbox || '')
+
+  if (req.headers['if-none-match'] === etag) return respond(res, 304)
   sbot.blobs.has(id, function (err, has) {
     if (err) {
       if (/^invalid/.test(err.message)) return respond(res, 400, err.message)
       else return respond(res, 500, err.message || err)
     }
     if (!has) return respond(res, 404, 'Not found')
+
+    var unboxKey
+    if (unbox) {
+      try { unboxKey = new Buffer(unbox, 'base64') }
+      catch(e) { return respond(res, 400, err.message) }
+      if (unboxKey.length !== 32) return respond(res, 400, 'Bad blob key')
+    }
+
     res.writeHead(200, {
       'Cache-Control': 'public, max-age=315360000',
-      'etag': id
+      'etag': etag
     })
+
     pull(
       sbot.blobs.get(id),
+      unboxKey ? BoxStream.createUnboxStream(unboxKey, zeros) : null,
       toPull(res, function (err) {
         if (err) console.error('[viewer]', err)
       })
