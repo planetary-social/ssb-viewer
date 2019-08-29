@@ -24,7 +24,7 @@ var {
   renderShowAll,
   renderRssItem,
   wrapRss,
-} = require('./render');
+} = require('./render')
 
 var appHash = hash([fs.readFileSync(__filename)])
 
@@ -110,9 +110,9 @@ exports.init = function (sbot, config) {
   }
 
   function serveFeed(req, res, feedId, ext) {
-    console.log("serving feed: " + feedId)
+    console.log('serving feed: ' + feedId)
 
-    var showAll = req.url.endsWith("?showAll");
+    var showAll = req.url.endsWith('?showAll')
 
     getAbout(feedId, function (err, about) {
       if (err) return respond(res, 500, err.stack || err)
@@ -123,7 +123,7 @@ exports.init = function (sbot, config) {
             return pull(
               // formatMsgs(feedId, ext, defaultOpts)
               renderRssItem(defaultOpts), wrapRss(about.name, defaultOpts)
-            );
+            )
           default:
             var publicWebHosting = about.publicWebHosting == null
               ? !defaultOpts.requireOptIn : about.publicWebHosting
@@ -131,7 +131,7 @@ exports.init = function (sbot, config) {
             return pull(
               renderAbout(defaultOpts, about,
                           renderShowAll(showAll, req.url)), wrapPage(name)
-            );
+            )
         }
       }
 
@@ -187,41 +187,41 @@ exports.init = function (sbot, config) {
 
   function serveUserFeed(req, res, url) {
     var feedId = url.substring(url.lastIndexOf('user-feed/')+10, 100)
-    console.log("serving user feed: " + feedId)
+    console.log('serving user feed: ' + feedId)
 
     var following = []
     var channelSubscriptions = []
     
     getAbout(feedId, function (err, about) {
       pull(
-	sbot.createUserStream({ id: feedId }),
-	pull.filter((msg) => {
-	  return !msg.value ||
-	    msg.value.content.type == 'contact' ||
-	    (msg.value.content.type == 'channel' &&
-	     typeof msg.value.content.subscribed != 'undefined')
-	}),
-	pull.collect(function (err, msgs) {
-	  msgs.forEach((msg) => {
-	    if (msg.value.content.type == 'contact')
-	    {
-	      if (msg.value.content.following)
-		following[msg.value.content.contact] = 1
-	      else
-		delete following[msg.value.content.contact]
-	    }
-	    else // channel subscription
-	    {
-	      if (msg.value.content.subscribed)
-		channelSubscriptions[msg.value.content.channel] = 1
-	      else
-		delete channelSubscriptions[msg.value.content.channel]
-	    }
-	  })
-	  
-	  serveFeeds(req, res, following, channelSubscriptions, feedId,
-                     'user feed ' + (about ? about.name : ""))
-	})
+        sbot.createUserStream({ id: feedId }),
+        pull.filter((msg) => {
+          return !msg.value ||
+            msg.value.content.type == 'contact' ||
+            (msg.value.content.type == 'channel' &&
+             typeof msg.value.content.subscribed != 'undefined')
+        }),
+        pull.collect(function (err, msgs) {
+          msgs.forEach((msg) => {
+            if (msg.value.content.type == 'contact')
+            {
+              if (msg.value.content.following)
+                following[msg.value.content.contact] = 1
+              else
+                delete following[msg.value.content.contact]
+            }
+            else // channel subscription
+            {
+              if (msg.value.content.subscribed)
+                channelSubscriptions[msg.value.content.channel] = 1
+              else
+                delete channelSubscriptions[msg.value.content.channel]
+            }
+          })
+          
+          serveFeeds(req, res, following, channelSubscriptions, feedId,
+                     'user feed ' + (about ? about.name : ''))
+        })
       )
     })
   }
@@ -241,58 +241,58 @@ exports.init = function (sbot, config) {
     pull(
       sbot.createLogStream({ reverse: true, limit: 5000 }),
       pull.filter((msg) => {
-	return !msg.value ||
-	  (msg.value.author in following ||
-	   msg.value.content.channel in channelSubscriptions)
+        return !msg.value ||
+          (msg.value.author in following ||
+           msg.value.content.channel in channelSubscriptions)
       }),
       pull.take(150),
       pull.collect(function (err, logs) {
-	if (err) return respond(res, 500, err.stack || err)
-	res.writeHead(200, {
-	  'Content-Type': ctype("html")
-	})
-	pull(
-	  pull.values(logs),
-	  paramap(addAuthorAbout, 8),
+        if (err) return respond(res, 500, err.stack || err)
+        res.writeHead(200, {
+          'Content-Type': ctype('html')
+        })
+        pull(
+          pull.values(logs),
+          paramap(addAuthorAbout, 8),
           paramap(addBlog, 8),
-	  paramap(addFollowAbout, 8),
-	  paramap(addVoteMessage, 8),
-	  paramap(addGitLinks, 8),
-    paramap(addGatheringAbout, 8),
-	  pull(renderThread(feedOpts), wrapPage(name)),
-	  toPull(res, function (err) {
-	    if (err) console.error('[viewer]', err)
-	  })
-	)
+          paramap(addFollowAbout, 8),
+          paramap(addVoteMessage, 8),
+          paramap(addGitLinks, 8),
+          paramap(addGatheringAbout, 8),
+          pull(renderThread(feedOpts), wrapPage(name)),
+          toPull(res, function (err) {
+            if (err) console.error('[viewer]', err)
+          })
+        )
       })
     )
   }
 
   function serveChannel(req, res, url) {
     var channelId = url.substring(url.lastIndexOf('channel/')+8, 100)
-    console.log("serving channel: " + channelId)
+    console.log('serving channel: ' + channelId)
 
-    var showAll = req.url.endsWith("?showAll")
+    var showAll = req.url.endsWith('?showAll')
     
     pull(
       sbot.query.read({ limit: showAll ? 300 : 10, reverse: true, query: [{$filter: { value: { content: { channel: channelId }}}}]}),
       pull.collect(function (err, logs) {
-	if (err) return respond(res, 500, err.stack || err)
-	res.writeHead(200, {
-	  'Content-Type': ctype("html")
-	})
-	pull(
-	  pull.values(logs),
-	  paramap(addAuthorAbout, 8),
+        if (err) return respond(res, 500, err.stack || err)
+        res.writeHead(200, {
+          'Content-Type': ctype('html')
+        })
+        pull(
+          pull.values(logs),
+          paramap(addAuthorAbout, 8),
           paramap(addBlog, 8),
-    paramap(addVoteMessage, 8),
-    paramap(addGatheringAbout, 8),
-	  pull(renderThread(defaultOpts, '', renderShowAll(showAll, req.url)),
-	       wrapPage('#' + channelId)),
-	  toPull(res, function (err) {
-	    if (err) console.error('[viewer]', err)
-	  })
-	)
+          paramap(addVoteMessage, 8),
+          paramap(addGatheringAbout, 8),
+          pull(renderThread(defaultOpts, '', renderShowAll(showAll, req.url)),
+               wrapPage('#' + channelId)),
+          toPull(res, function (err) {
+            if (err) console.error('[viewer]', err)
+          })
+        )
       })
     )
   }
@@ -372,9 +372,9 @@ exports.init = function (sbot, config) {
   function addFollowAbout(msg, cb) {
     if (msg.value.content.contact)
       getAbout(msg.value.content.contact, function (err, about) {
-	if (err) return cb(err)
-	msg.value.content.contactAbout = about
-	cb(null, msg)
+        if (err) return cb(err)
+        msg.value.content.contactAbout = about
+        cb(null, msg)
       })
     else
       cb(null, msg)
@@ -383,16 +383,16 @@ exports.init = function (sbot, config) {
   function addVoteMessage(msg, cb) {
     if (msg.value.content.type == 'vote' && msg.value.content.vote && msg.value.content.vote.link[0] == '%')
       getMsg(msg.value.content.vote.link, function (err, linkedMsg) {
-	if (linkedMsg)
-	  msg.value.content.vote.linkedText = linkedMsg.value.content.text
-	cb(null, msg)
+        if (linkedMsg)
+          msg.value.content.vote.linkedText = linkedMsg.value.content.text
+        cb(null, msg)
       })
     else
       cb(null, msg)
   }
 
   function addBlog(msg, cb) {
-    if (msg.value && msg.value.content.type == "blog") {
+    if (msg.value && msg.value.content.type == 'blog') {
       pull(
         sbot.blobs.get(msg.value.content.blog),
         pull.collect(function(err, blob) {
@@ -449,15 +449,15 @@ exports.init = function (sbot, config) {
   function addGitLinks(msg, cb) {
     if (msg.value.content.type == 'git-update')
       getMsg(msg.value.content.repo, function (err, gitRepo) {
-	if (gitRepo)
-	  msg.value.content.repoName = gitRepo.value.content.name
-	cb(null, msg)
+        if (gitRepo)
+          msg.value.content.repoName = gitRepo.value.content.name
+        cb(null, msg)
       })
     else if (msg.value.content.type == 'issue')
       getMsg(msg.value.content.project, function (err, gitRepo) {
-	if (gitRepo)
-	  msg.value.content.repoName = gitRepo.value.content.name
-	cb(null, msg)
+        if (gitRepo)
+          msg.value.content.repoName = gitRepo.value.content.name
+        cb(null, msg)
       })
     else
       cb(null, msg)
@@ -572,8 +572,8 @@ function serveHome(req, res, query, conf) {
   if (id) {
     res.writeHead(303, {
       Location: '/' + (
-	id[0] === '#' ? 'channel/' + id.substr(1) :
-	refs.isMsgId(id) ? encodeURIComponent(id) : id)
+        id[0] === '#' ? 'channel/' + id.substr(1) :
+        refs.isMsgId(id) ? encodeURIComponent(id) : id)
     })
     return res.end()
   }
