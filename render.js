@@ -578,7 +578,14 @@ function renderPost(opts, id, c) {
     content += 'Re: ' + h('a',
                           { href: '/' + encodeURIComponent(c.root) },
                           c.root.substring(0, 10)).outerHTML + '<br>'
-  s.innerHTML = content + marked(String(c.text), opts.marked)
+  var textHTML = marked(String(c.text), opts.marked)
+  if (typeof c.contentWarning === 'string') {
+    textHTML = h('details',
+      h('summary', 'Content warning: ' + c.contentWarning),
+      h('div', {innerHTML: textHTML})
+    ).outerHTML
+  }
+  s.innerHTML = content + textHTML
   return s
 }
 

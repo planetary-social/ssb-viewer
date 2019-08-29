@@ -342,6 +342,7 @@ exports.init = function (sbot, config) {
       pull(
         pull.values(sort(links)),
         paramap(addAuthorAbout, 8),
+        paramap(addVoteMessage, 8),
         paramap(addBlog, 8),
         paramap(addGatheringAbout, 8),
         format,
@@ -383,8 +384,11 @@ exports.init = function (sbot, config) {
   function addVoteMessage(msg, cb) {
     if (msg.value.content.type == 'vote' && msg.value.content.vote && msg.value.content.vote.link[0] == '%')
       getMsg(msg.value.content.vote.link, function (err, linkedMsg) {
+        var linkedC = linkedMsg && linkedMsg.value.content
         if (linkedMsg)
-          msg.value.content.vote.linkedText = linkedMsg.value.content.text
+          msg.value.content.vote.linkedText =
+            (typeof linkedC.contentWarning === 'string' ? '[CW: ' + linkedC.contentWarning + '] ' : '') +
+            linkedC.text
         cb(null, msg)
       })
     else
