@@ -489,7 +489,7 @@ function serveBlob(req, res, sbot, id, query) {
     }
 
     res.writeHead(200, {
-      'Cache-Control': 'public, max-age=315360000',
+      'Cache-Control': 'public, max-age=315360000, immutable',
       'etag': etag
     })
 
