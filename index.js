@@ -30,7 +30,7 @@ var appHash = hash([fs.readFileSync(__filename)])
 
 var urlIdRegex = /^(?:\/(([%&@]|%25|%26|%40)(?:[A-Za-z0-9\/+]|%2[Ff]|%2[Bb]){43}(?:=|%3[Dd])\.(?:sha256|ed25519))(?:\.([^?]*))?|(\/.*?))(?:\?(.*))?$/
 
-var zeros = new Buffer(24); zeros.fill(0)
+var zeros = Buffer.alloc(24); zeros.fill(0)
 
 function hash(arr) {
   return arr.reduce(function (hash, item) {
@@ -483,7 +483,7 @@ function serveBlob(req, res, sbot, id, query) {
 
     var unboxKey
     if (unbox) {
-      try { unboxKey = new Buffer(unbox, 'base64') }
+      try { unboxKey = Buffer.from(unbox, 'base64') }
       catch(e) { return respond(res, 400, err.message) }
       if (unboxKey.length !== 32) return respond(res, 400, 'Bad blob key')
     }
