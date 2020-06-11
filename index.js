@@ -11,6 +11,9 @@ var memo = require('asyncmemo')
 var lru = require('lrucache')
 var webresolve = require('ssb-web-resolver')
 var serveEmoji = require('emoji-server')()
+var refs = require('ssb-ref')
+var BoxStream = require('pull-box-stream')
+var h = require('hyperscript')
 var {
   MdRenderer,
   renderEmoji,
@@ -21,11 +24,13 @@ var {
   renderShowAll,
   renderRssItem,
   wrapRss,
-} = require('./render');
+} = require('./render')
 
 var appHash = hash([fs.readFileSync(__filename)])
 
 var urlIdRegex = /^(?:\/(([%&@]|%25|%26|%40)(?:[A-Za-z0-9\/+]|%2[Ff]|%2[Bb]){43}(?:=|%3[Dd])\.(?:sha256|ed25519))(?:\.([^?]*))?|(\/.*?))(?:\?(.*))?$/
+
+var zeros = Buffer.alloc(24); zeros.fill(0)
 
 function hash(arr) {
   return arr.reduce(function (hash, item) {
@@ -50,6 +55,7 @@ exports.init = function (sbot, config) {
     blob_base: conf.blob_base || base,
     img_base: conf.img_base || base,
     emoji_base: conf.emoji_base || (base + 'emoji/'),
+    requireOptIn: conf.require_opt_in == null ? true : conf.require_opt_in,
   }
 
   defaultOpts.marked = {
@@ -70,6 +76,7 @@ exports.init = function (sbot, config) {
   var serveAcmeChallenge = require('ssb-acme-validator')(sbot)
 
   http.createServer(serve).listen(port, host, function () {
+    if (/:/.test(host)) host = '[' + host + ']'
     console.log('[viewer] Listening on http://' + host + ':' + port)
   })
 
@@ -80,6 +87,9 @@ exports.init = function (sbot, config) {
 
     var m = urlIdRegex.exec(req.url)
 
+    if (m[4] === '/robots.txt') return serveRobots(req, res, conf)
+    if (req.url.startsWith('/static/')) return serveStatic(req, res, m[4])
+    if (req.url.startsWith('/emoji/')) return serveEmoji(req, res, m[4])
     if (req.url.startsWith('/user-feed/')) return serveUserFeed(req, res, m[4])
     else if (req.url.startsWith('/channel/')) return serveChannel(req, res, m[4])
     else if (req.url.startsWith('/.well-known/acme-challenge')) return serveAcmeChallenge(req, res)
@@ -92,15 +102,17 @@ exports.init = function (sbot, config) {
     switch (m[2]) {
       case '%': return serveId(req, res, m[1], m[3], m[5])
       case '@': return serveFeed(req, res, m[1], m[3], m[5])
-      case '&': return serveBlob(req, res, sbot, m[1])
-      default: return servePath(req, res, m[4], conf)
+      case '&': return serveBlob(req, res, sbot, m[1], m[5])
     }
+
+    if (m[4] === '/') return serveHome(req, res, m[5])
+    return respond(res, 404, 'Not found')
   }
 
   function serveFeed(req, res, feedId, ext) {
-    console.log("serving feed: " + feedId)
+    console.log('serving feed: ' + feedId)
 
-    var showAll = req.url.endsWith("?showAll");
+    var showAll = req.url.endsWith('?showAll')
 
     getAbout(feedId, function (err, about) {
       if (err) return respond(res, 500, err.stack || err)
@@ -111,12 +123,15 @@ exports.init = function (sbot, config) {
             return pull(
               // formatMsgs(feedId, ext, defaultOpts)
               renderRssItem(defaultOpts), wrapRss(about.name, defaultOpts)
-            );
+            )
           default:
+            var publicWebHosting = about.publicWebHosting == null
+              ? !defaultOpts.requireOptIn : about.publicWebHosting
+            var name = publicWebHosting ? about.name : feedId.substr(0, 10) + '…'
             return pull(
               renderAbout(defaultOpts, about,
-                          renderShowAll(showAll, req.url)), wrapPage(about.name)
-            );
+                          renderShowAll(showAll, req.url)), wrapPage(name)
+            )
         }
       }
 
@@ -172,41 +187,41 @@ exports.init = function (sbot, config) {
 
   function serveUserFeed(req, res, url) {
     var feedId = url.substring(url.lastIndexOf('user-feed/')+10, 100)
-    console.log("serving user feed: " + feedId)
+    console.log('serving user feed: ' + feedId)
 
     var following = []
     var channelSubscriptions = []
     
     getAbout(feedId, function (err, about) {
       pull(
-	sbot.createUserStream({ id: feedId }),
-	pull.filter((msg) => {
-	  return !msg.value ||
-	    msg.value.content.type == 'contact' ||
-	    (msg.value.content.type == 'channel' &&
-	     typeof msg.value.content.subscribed != 'undefined')
-	}),
-	pull.collect(function (err, msgs) {
-	  msgs.forEach((msg) => {
-	    if (msg.value.content.type == 'contact')
-	    {
-	      if (msg.value.content.following)
-		following[msg.value.content.contact] = 1
-	      else
-		delete following[msg.value.content.contact]
-	    }
-	    else // channel subscription
-	    {
-	      if (msg.value.content.subscribed)
-		channelSubscriptions[msg.value.content.channel] = 1
-	      else
-		delete channelSubscriptions[msg.value.content.channel]
-	    }
-	  })
-	  
-	  serveFeeds(req, res, following, channelSubscriptions, feedId,
-                     'user feed ' + (about ? about.name : ""))
-	})
+        sbot.createUserStream({ id: feedId }),
+        pull.filter((msg) => {
+          return !msg.value ||
+            msg.value.content.type == 'contact' ||
+            (msg.value.content.type == 'channel' &&
+             typeof msg.value.content.subscribed != 'undefined')
+        }),
+        pull.collect(function (err, msgs) {
+          msgs.forEach((msg) => {
+            if (msg.value.content.type == 'contact')
+            {
+              if (msg.value.content.following)
+                following[msg.value.content.contact] = 1
+              else
+                delete following[msg.value.content.contact]
+            }
+            else // channel subscription
+            {
+              if (msg.value.content.subscribed)
+                channelSubscriptions[msg.value.content.channel] = 1
+              else
+                delete channelSubscriptions[msg.value.content.channel]
+            }
+          })
+          
+          serveFeeds(req, res, following, channelSubscriptions, feedId,
+                     'user feed ' + (about ? about.name : ''))
+        })
       )
     })
   }
@@ -226,58 +241,58 @@ exports.init = function (sbot, config) {
     pull(
       sbot.createLogStream({ reverse: true, limit: 5000 }),
       pull.filter((msg) => {
-	return !msg.value ||
-	  (msg.value.author in following ||
-	   msg.value.content.channel in channelSubscriptions)
+        return !msg.value ||
+          (msg.value.author in following ||
+           msg.value.content.channel in channelSubscriptions)
       }),
       pull.take(150),
       pull.collect(function (err, logs) {
-	if (err) return respond(res, 500, err.stack || err)
-	res.writeHead(200, {
-	  'Content-Type': ctype("html")
-	})
-	pull(
-	  pull.values(logs),
-	  paramap(addAuthorAbout, 8),
+        if (err) return respond(res, 500, err.stack || err)
+        res.writeHead(200, {
+          'Content-Type': ctype('html')
+        })
+        pull(
+          pull.values(logs),
+          paramap(addAuthorAbout, 8),
           paramap(addBlog, 8),
-	  paramap(addFollowAbout, 8),
-	  paramap(addVoteMessage, 8),
-	  paramap(addGitLinks, 8),
-    paramap(addGatheringAbout, 8),
-	  pull(renderThread(feedOpts), wrapPage(name)),
-	  toPull(res, function (err) {
-	    if (err) console.error('[viewer]', err)
-	  })
-	)
+          paramap(addFollowAbout, 8),
+          paramap(addVoteMessage, 8),
+          paramap(addGitLinks, 8),
+          paramap(addGatheringAbout, 8),
+          pull(renderThread(feedOpts), wrapPage(name)),
+          toPull(res, function (err) {
+            if (err) console.error('[viewer]', err)
+          })
+        )
       })
     )
   }
 
   function serveChannel(req, res, url) {
     var channelId = url.substring(url.lastIndexOf('channel/')+8, 100)
-    console.log("serving channel: " + channelId)
+    console.log('serving channel: ' + channelId)
 
-    var showAll = req.url.endsWith("?showAll")
+    var showAll = req.url.endsWith('?showAll')
     
     pull(
       sbot.query.read({ limit: showAll ? 300 : 10, reverse: true, query: [{$filter: { value: { content: { channel: channelId }}}}]}),
       pull.collect(function (err, logs) {
-	if (err) return respond(res, 500, err.stack || err)
-	res.writeHead(200, {
-	  'Content-Type': ctype("html")
-	})
-	pull(
-	  pull.values(logs),
-	  paramap(addAuthorAbout, 8),
+        if (err) return respond(res, 500, err.stack || err)
+        res.writeHead(200, {
+          'Content-Type': ctype('html')
+        })
+        pull(
+          pull.values(logs),
+          paramap(addAuthorAbout, 8),
           paramap(addBlog, 8),
-    paramap(addVoteMessage, 8),
-    paramap(addGatheringAbout, 8),
-	  pull(renderThread(defaultOpts, '', renderShowAll(showAll, req.url)),
-	       wrapPage('#' + channelId)),
-	  toPull(res, function (err) {
-	    if (err) console.error('[viewer]', err)
-	  })
-	)
+          paramap(addVoteMessage, 8),
+          paramap(addGatheringAbout, 8),
+          pull(renderThread(defaultOpts, '', renderShowAll(showAll, req.url)),
+               wrapPage('#' + channelId)),
+          toPull(res, function (err) {
+            if (err) console.error('[viewer]', err)
+          })
+        )
       })
     )
   }
@@ -299,6 +314,7 @@ exports.init = function (sbot, config) {
       blob_base: q.blob_base || conf.blob_base || base,
       img_base: q.img_base || conf.img_base || base,
       emoji_base: q.emoji_base || conf.emoji_base || (base + 'emoji/'),
+      requireOptIn: defaultOpts.requireOptIn,
     }
     opts.marked = {
       gfm: true,
@@ -326,6 +342,7 @@ exports.init = function (sbot, config) {
       pull(
         pull.values(sort(links)),
         paramap(addAuthorAbout, 8),
+        paramap(addVoteMessage, 8),
         paramap(addBlog, 8),
         paramap(addGatheringAbout, 8),
         format,
@@ -356,9 +373,9 @@ exports.init = function (sbot, config) {
   function addFollowAbout(msg, cb) {
     if (msg.value.content.contact)
       getAbout(msg.value.content.contact, function (err, about) {
-	if (err) return cb(err)
-	msg.value.content.contactAbout = about
-	cb(null, msg)
+        if (err) return cb(err)
+        msg.value.content.contactAbout = about
+        cb(null, msg)
       })
     else
       cb(null, msg)
@@ -367,16 +384,19 @@ exports.init = function (sbot, config) {
   function addVoteMessage(msg, cb) {
     if (msg.value.content.type == 'vote' && msg.value.content.vote && msg.value.content.vote.link[0] == '%')
       getMsg(msg.value.content.vote.link, function (err, linkedMsg) {
-	if (linkedMsg)
-	  msg.value.content.vote.linkedText = linkedMsg.value.content.text
-	cb(null, msg)
+        var linkedC = linkedMsg && linkedMsg.value.content
+        if (linkedMsg)
+          msg.value.content.vote.linkedText =
+            (typeof linkedC.contentWarning === 'string' ? '[CW: ' + linkedC.contentWarning + '] ' : '') +
+            linkedC.text
+        cb(null, msg)
       })
     else
       cb(null, msg)
   }
 
   function addBlog(msg, cb) {
-    if (msg.value && msg.value.content.type == "blog") {
+    if (msg.value && msg.value.content.type == 'blog') {
       pull(
         sbot.blobs.get(msg.value.content.blog),
         pull.collect(function(err, blob) {
@@ -433,35 +453,49 @@ exports.init = function (sbot, config) {
   function addGitLinks(msg, cb) {
     if (msg.value.content.type == 'git-update')
       getMsg(msg.value.content.repo, function (err, gitRepo) {
-	if (gitRepo)
-	  msg.value.content.repoName = gitRepo.value.content.name
-	cb(null, msg)
+        if (gitRepo)
+          msg.value.content.repoName = gitRepo.value.content.name
+        cb(null, msg)
       })
     else if (msg.value.content.type == 'issue')
       getMsg(msg.value.content.project, function (err, gitRepo) {
-	if (gitRepo)
-	  msg.value.content.repoName = gitRepo.value.content.name
-	cb(null, msg)
+        if (gitRepo)
+          msg.value.content.repoName = gitRepo.value.content.name
+        cb(null, msg)
       })
     else
       cb(null, msg)
   }
 }
 
-function serveBlob(req, res, sbot, id) {
-  if (req.headers['if-none-match'] === id) return respond(res, 304)
+function serveBlob(req, res, sbot, id, query) {
+  var q = query && qs.parse(query)
+  var unbox = q && typeof q.unbox === 'string' && q.unbox.replace(/\s/g, '+')
+  var etag = id + (unbox || '')
+
+  if (req.headers['if-none-match'] === etag) return respond(res, 304)
   sbot.blobs.has(id, function (err, has) {
     if (err) {
       if (/^invalid/.test(err.message)) return respond(res, 400, err.message)
       else return respond(res, 500, err.message || err)
     }
     if (!has) return respond(res, 404, 'Not found')
+
+    var unboxKey
+    if (unbox) {
+      try { unboxKey = Buffer.from(unbox, 'base64') }
+      catch(e) { return respond(res, 400, err.message) }
+      if (unboxKey.length !== 32) return respond(res, 400, 'Bad blob key')
+    }
+
     res.writeHead(200, {
-      'Cache-Control': 'public, max-age=315360000',
-      'etag': id
+      'Cache-Control': 'public, max-age=315360000, immutable',
+      'etag': etag
     })
+
     pull(
       sbot.blobs.get(id),
+      unboxKey ? BoxStream.createUnboxStream(unboxKey, zeros) : null,
       toPull(res, function (err) {
         if (err) console.error('[viewer]', err)
       })
@@ -491,18 +525,6 @@ function ctype(name) {
   }
 }
 
-function servePath(req, res, url, conf) {
-  switch (url) {
-    case '/robots.txt': return serveRobots(req, res, conf)
-  }
-  var m = /^(\/?[^\/]*)(\/.*)?$/.exec(url)
-  switch (m[1]) {
-    case '/static': return serveStatic(req, res, m[2])
-    case '/emoji': return serveEmoji(req, res, m[2])
-  }
-  return respond(res, 404, 'Not found')
-}
-
 function ifModified(req, lastMod) {
   var ifModSince = req.headers['if-modified-since']
   if (!ifModSince) return false
@@ -529,9 +551,55 @@ function serveFile(req, res, file) {
   })
 }
 
+function asChannelLink(id) {
+  var channel = refs.normalizeChannel(id)
+  if (channel) return '#' + channel
+}
+
+function asLink(id) {
+  if (!id || typeof id !== 'string') return null
+  id = id.trim()
+  if (id[0] === '#') return asChannelLink(id)
+  if (refs.isLink(id)) return id
+  try {
+    id = decodeURIComponent(id)
+  } catch(e) {
+    return null
+  }
+  if (id[0] === '#') return asChannelLink(id)
+  if (refs.isLink(id)) return id
+}
+
+function serveHome(req, res, query, conf) {
+  var q = query ? qs.parse(query) : {}
+  var id = asLink(q.id)
+  if (id) {
+    res.writeHead(303, {
+      Location: '/' + (
+        id[0] === '#' ? 'channel/' + id.substr(1) :
+        refs.isMsgId(id) ? encodeURIComponent(id) : id)
+    })
+    return res.end()
+  }
+  res.writeHead(200, {
+    'Content-Type': 'text/html'
+  })
+  pull(
+    pull.once(h('form', {method: 'get', action: ''},
+      h('input', {name: 'id', placeholder: 'id', size: 60, value: q.id || ''}), ' ',
+      h('input', {type: 'submit', value: 'Go'})
+    ).outerHTML),
+    wrapPage('ssb-viewer'),
+    toPull(res, function (err) {
+      if (err) console.error('[viewer]', err)
+    })
+  )
+}
+
 function serveRobots(req, res, conf) {
-  res.end('User-agent: *'
-    + (conf.disallowRobots ? '\nDisallow: /' : ''))
+  var disallow = conf.disallowRobots == null ? true : conf.disallowRobots
+  res.end('User-agent: *\n'
+    + (disallow ? 'Disallow: /\n' : ''))
 }
 
 function prepend(fn, arg) {
