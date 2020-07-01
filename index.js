@@ -494,13 +494,17 @@ function ctype(name) {
 function servePath(req, res, url, conf) {
   switch (url) {
     case '/robots.txt': return serveRobots(req, res, conf)
-  }
+    case '': return serveStatic(req, res, 'index.html')
+    case '/': return serveStatic(req, res, 'index.html')
+    case 'ssb-viewer.tar.gz': return serveStatic(req, res,
+'ssb-viewer.tar.gz')
+}
   var m = /^(\/?[^\/]*)(\/.*)?$/.exec(url)
   switch (m[1]) {
     case '/static': return serveStatic(req, res, m[2])
     case '/emoji': return serveEmoji(req, res, m[2])
   }
-  return respond(res, 404, 'Not found')
+  return  serveStatic(req, res, 'index.html')
 }
 
 function ifModified(req, lastMod) {

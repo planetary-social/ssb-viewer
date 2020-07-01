@@ -102,15 +102,15 @@ function wrap(before, after) {
 
 function callToAction() {
   return h('a.call-to-action',
-	   { href: 'https://www.scuttlebutt.nz' },
-	   'Join Scuttlebutt now').outerHTML;
+	   { href: 'https://bit.ly/planetarytesting' },
+	   'Join Planetary Now').outerHTML;
 }
 
 function toolTipTop() {
   return h('span.top-tip',
 	   'You are reading content from ',
-	   h('a', { href: 'https://www.scuttlebutt.nz' },
-	     'Scuttlebutt')).outerHTML;
+	   h('a', { href: 'https://planetary.social' },
+	     'Planetary')).outerHTML;
 }
 
 function renderAbout(opts, about, showAllHTML = "") {
@@ -309,7 +309,7 @@ function wrapJSON() {
 
 function wrapJSEmbed(opts) {
   return pull(
-    wrap('<link rel=stylesheet href="' + opts.base + 'static/base.css">', ""),
+    wrap('<link rel=stylesheet href="' + opts.base + 'static/nicer.css">', ""),
     pull.map(docWrite),
     opts.base_token && rewriteBase(new RegExp(opts.base_token, "g"))
   );
