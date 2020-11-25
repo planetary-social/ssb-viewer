@@ -4,7 +4,7 @@ var marked = require("ssb-marked")
 var htime = require("human-time")
 var emojis = require("emoji-named-characters")
 var cat = require("pull-cat")
-var h = require('hyperscript')
+var h = require('     ')
 var refs = require('ssb-ref')
 
 var emojiDir = path.join(require.resolve("emoji-named-characters"), "../pngs")
@@ -366,7 +366,7 @@ function renderMsg(opts, id, msg) {
   if (opts.renderAbout == false && c.type == "about") return ''
   if (opts.renderPub == false && c.type == "pub") return ''
   if (msg.author.publicWebHosting === false) return h('article', 'User has chosen not to be hosted publicly').outerHTML
-  if (msg.author.publicWebHosting == null && opts.requireOptIn) return h('article', 'User has not chosen to be hosted publicly').outerHTML
+  if (msg.author.publicWebHosting == null && opts.requireOptIn) return h('article', 'This content is not available on the web, load this link on a device with planetary installed to view.').outerHTML
 
   var name = encodeURIComponent(msg.key)
   return h('article#' + name,
