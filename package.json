@@ -21,7 +21,8 @@
     "ssb-ref": "^2.9.0",
     "ssb-sort": "^1.0.0",
     "ssb-web-resolver": "^1.0.4",
-    "stream-to-pull-stream": "^1.7.2"
+    "stream-to-pull-stream": "^1.7.2",
+    "hashlru": "^2.1.0"
   },
   "devDependencies": {
     "tape": "^4.6.2"
