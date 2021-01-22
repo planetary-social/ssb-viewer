@@ -73,10 +73,10 @@ exports.init = function (sbot, config) {
 
   var getMsg = memo({cache: lru(100)}, getMsgWithValue, sbot)
   var getAbout = memo({cache: lru(100)}, require('./lib/about'), sbot)
-  var serveAcmeChallenge = require('ssb-acme-validator')(sbot)
+  var serveAcmeChallenge = require('./lib/validator')(sbot)
 
   http.createServer(serve).listen(port, host, function () {
-    if (/:/.test(host)) host = '[' + host + ']'
+    if (/:/.test(host)) host = '[' + host + ']' 
     console.log('[viewer] Listening on http://' + host + ':' + port)
   })
 
