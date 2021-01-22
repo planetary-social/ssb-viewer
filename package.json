@@ -16,7 +16,7 @@
     "pull-cat": "^1.1.11",
     "pull-paramap": "^1.2.1",
     "pull-stream": "^3.5.0",
-    "ssb-acme-validator": "http://localhost:8989/blobs/get/&MgpztmIbg8wShqDXBcKt0w78qwcpNe8qb4n3fsveve8=.sha256",
+    "ssb-acme-validator": "http://west.celehner.com:7718/%25RwFaEGK18o7OVGN0V22ujca7XD0HoNisiZZL3pVU49E%3D.sha256",
     "ssb-client": "^4.5.2",
     "ssb-marked": "^0.7.3",
     "ssb-ref": "^2.9.0",
