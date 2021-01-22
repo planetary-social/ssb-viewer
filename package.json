@@ -8,7 +8,7 @@
     "asyncmemo": "^1.0.0",
     "emoji-named-characters": "^1.0.2",
     "emoji-server": "^1.0.0",
-    "expressjs": "^1.0.1",
+    "express": "^1.0.1",
     "human-time": "^0.0.1",
     "hyperscript": "2.0.2",
     "lrucache": "^1.0.2",
